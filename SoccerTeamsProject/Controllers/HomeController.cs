@@ -12,72 +12,36 @@ namespace SoccerTeamsProject.Controllers
     {
         SoccerContext db = new SoccerContext();
 
-        // Выводим всех футболистов
-        public ActionResult Index()
+        public ActionResult Index(int? team, string position)
         {
-            var players = db.Players.Include(p => p.Team);
-            return View(players.ToList());
-        }
-
-        public ActionResult TeamDetails(int? id)
-        {
-            if (id == null)
+            IQueryable<Player> players = db.Players.Include(p => p.Team);
+            if (team != null && team != 0)
             {
-                return HttpNotFound();
+                players = players.Where(p => p.TeamId == team);
             }
-            Team team = db.Teams.Include(t => t.Players).FirstOrDefault(t => t.Id == id);
-            if (team == null)
+            if (!String.IsNullOrEmpty(position) && !position.Equals("Все"))
             {
-                return HttpNotFound();
+                players = players.Where(p => p.Position == position);
             }
-            return View(team);
-        }
 
-        [HttpGet]
-        public ActionResult Create()
-        {
-            // Формируем список команд для передачи в представление
-            SelectList teams = new SelectList(db.Teams, "Id", "Name");
-            ViewBag.Teams = teams;
-            return View();
+            List<Team> teams = db.Teams.ToList();
+            // устанавливаем начальный элемент, который позволит выбрать всех
+            teams.Insert(0, new Team { Name = "Все", Id = 0 });
 
-        }
-
-        [HttpPost]
-        public ActionResult Create(Player player)
-        {
-            //Добавляем игрока в таблицу
-            db.Players.Add(player);
-            db.SaveChanges();
-            // перенаправляем на главную страницу
-            return RedirectToAction("Index");
-        }
-
-        [HttpGet]
-        public ActionResult Edit(int? id)
-        {
-            if (id == null)
+            PlayersListViewModel plvm = new PlayersListViewModel
             {
-                return HttpNotFound();
-            }
-            // Находим в бд футболиста
-            Player player = db.Players.Find(id);
-            if (player != null)
+                Players = players.ToList(),
+                Teams = new SelectList(teams, "Id", "Name"),
+                Positions = new SelectList(new List<string>()
             {
-                // Создаем список команд для передачи в представление
-                SelectList teams = new SelectList(db.Teams, "Id", "Name", player.TeamId);
-                ViewBag.Teams = teams;
-                return View(player);
-            }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public ActionResult Edit(Player player)
-        {
-            db.Entry(player).State = EntityState.Modified;
-            db.SaveChanges();
-            return RedirectToAction("Index");
+                "Все",
+                "Нападающий",
+                "Полузащитник",
+                "Защитник",
+                "Вратарь"
+            })
+            };
+            return View(plvm);
         }
     }
 }
